@@ -1,10 +1,10 @@
-// kdsdulcecrepafront/src/App.tsx (VERSIÓN CORREGIDA COMPATIBLE CON POS)
+// kdsdulcecrepafront/src/App.tsx (CORREGIDO: Lógica Nueva + Estilos CSS Originales)
 import React, { useEffect, useState, useRef } from 'react';
 import { 
     db, collection, doc, updateDoc, onSnapshot, query, where, orderBy,
     type Timestamp, type QuerySnapshot, type DocumentData 
 } from './firebase'; 
-import './App.css';
+import './App.css'; // <--- Importante: Usa tus estilos
 
 // --- TIPOS ---
 interface KDSOrder {
@@ -22,11 +22,11 @@ interface KDSOrderItem {
     details: {
         variantName?: string;
         selectedModifiers?: { name: string; price: number; group: string }[];
-        modifiers?: { name: string; price: number; group: string }[]; // Compatibilidad
+        modifiers?: { name: string; price: number; group: string }[];
     };
 }
 
-// --- HOOKS ---
+// --- HOOKS DE TIEMPO ---
 function useKdsClock() {
     const [time, setTime] = useState(new Date());
     useEffect(() => {
@@ -64,12 +64,10 @@ function App() {
     if (!isInteracted) return;
     audioRef.current?.play().catch(() => {}); 
 
-    // 1. Inicio del día (00:00 hrs)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // 2. CONSULTA MAESTRA CORREGIDA
-    // Ahora buscamos 'paid' y 'pending' (lo que manda el POS) Y TAMBIÉN los estados de cocina.
+    // CONSULTA OPTIMIZADA (Busca PENDING y paid/pending)
     const q = query(
       collection(db, "orders"),
       where("status", "in", ["paid", "pending", "PENDING", "PREPARING", "READY"]), 
@@ -79,76 +77,66 @@ function App() {
   
     const unsubscribe = onSnapshot(q, (snapshot: QuerySnapshot<DocumentData>) => {
         setIsConnected(true);
-  
-        // Sonido al llegar nueva orden pendiente/pagada
         snapshot.docChanges().forEach((change) => {
           const s = change.doc.data().status;
           if (change.type === "added" && (s === 'paid' || s === 'pending' || s === 'PENDING')) {
             const data = change.doc.data();
             const created = data.createdAt?.toMillis ? data.createdAt.toMillis() : Date.now();
-            // Solo sonar si es reciente (menos de 10 min)
             if (Date.now() - created < 10 * 60 * 1000) {
                 audioRef.current?.play().catch(e => console.warn("Audio error", e));
             }
           }
         });
-  
-        const ordersData = snapshot.docs.map((doc) => ({
-          orderId: doc.id,
-          ...doc.data()
-        })) as KDSOrder[];
-  
+        const ordersData = snapshot.docs.map((doc) => ({ orderId: doc.id, ...doc.data() })) as KDSOrder[];
         setOrders(ordersData);
       },
       (error) => {
         console.error("KDS Error:", error);
-        // Si falla por índice, avisa en consola pero intenta seguir
         setIsConnected(false);
       }
     );
-  
     return () => unsubscribe();
   }, [isInteracted]);
 
   if (!isInteracted) {
     return (
         <div className="kds-welcome-screen" onClick={() => setIsInteracted(true)}>
-            <h1 className="text-4xl font-bold">KDS Cocina</h1>
-            <p className="opacity-60 mt-2">Tocar pantalla para iniciar</p>
+            <img src="/logo.png" alt="Logo" style={{height: '150px', marginBottom: '20px', borderRadius: '20px'}} />
+            <h1>KDS Dulce Crepa</h1>
+            <p>Tocar para Iniciar</p>
         </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-900 text-white overflow-hidden">
-      {/* Header */}
-      <header className="flex items-center justify-between px-6 py-3 bg-gray-800 shadow-md z-10">
-        <div className="flex items-center gap-4">
-            <span className="text-xl font-bold text-blue-400">Dulce Crepa KDS</span>
-        </div>
-        <div className="text-2xl font-mono font-bold">{clockTime}</div>
-        <div className={`flex items-center gap-2 text-sm ${isConnected ? 'text-green-400' : 'text-red-400'}`}>
-            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
-            {isConnected ? 'Online' : 'Offline'}
-        </div>
+    <div className="App">
+      {/* HEADER (Estilo Original) */}
+      <header className="kds-header">
+            <img src="/logo.png" alt="Logo" className="kds-logo" />
+            <span className="kds-station-name">Cocina Principal</span>
+            <span className="kds-clock">{clockTime}</span>
+            <div className="connection-indicator">
+                <div className={`connection-dot ${isConnected ? 'connected' : ''}`}></div>
+                {isConnected ? 'Conectado' : 'Sin Conexión'}
+            </div>
       </header>
       
-      <div className="order-grid p-4 overflow-y-auto flex-1">
-        {orders.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full w-full opacity-20">
-                <span className="text-6xl">👨‍🍳</span>
-                <h2 className="text-2xl mt-4">Esperando órdenes...</h2>
-            </div>
-        ) : (
-            orders.map(order => <OrderCard key={order.orderId} order={order} />)
+      {/* GRID (Estilo Original) */}
+      <div className="order-grid">
+        {orders.length === 0 && (
+            <h2 style={{color: 'var(--text-muted)', textAlign: 'center', width: '100%', marginTop: '50px'}}>
+                Todo en orden, chef 👨‍🍳
+            </h2>
         )}
+        {orders.map(order => <OrderCard key={order.orderId} order={order} />)}
       </div>
+
       <audio ref={audioRef} src="/notification.mp3" preload="auto" />
     </div>
   );
 }
 
-// --- TARJETA INTELIGENTE ---
+// --- TARJETA DE ORDEN (Estilo Original) ---
 
 const OrderCard: React.FC<{ order: KDSOrder }> = ({ order }) => {
     const mins = useElapsedTime(order.createdAt);
@@ -158,44 +146,41 @@ const OrderCard: React.FC<{ order: KDSOrder }> = ({ order }) => {
         updateDoc(doc(db, "orders", order.orderId), { status }).catch(console.error);
     };
 
-    // Normalizar estado para UI (Cualquier variante de pendiente es "PENDING")
+    // Normalizar estado (paid/pending -> PENDING)
     const uiStatus = (order.status === 'paid' || order.status === 'pending') ? 'PENDING' : order.status;
 
-    // Colores según estado normalizado
-    let borderClass = "border-l-4 border-gray-600";
-    if (uiStatus === 'PENDING') borderClass = isLate ? "border-l-8 border-red-500 animate-pulse" : "border-l-4 border-yellow-400";
-    if (uiStatus === 'PREPARING') borderClass = "border-l-4 border-blue-500";
-    if (uiStatus === 'READY') borderClass = "border-l-4 border-green-500";
+    const isPending = uiStatus === 'PENDING';
+    const isPreparing = uiStatus === 'PREPARING';
+    const isReady = uiStatus === 'READY';
 
     return (
-        <div className={`bg-gray-800 rounded-lg shadow-lg flex flex-col h-full ${borderClass} transition-all duration-300`}>
-            <div className="p-3 border-b border-gray-700 flex justify-between items-start">
-                <div>
-                    <span className="text-2xl font-black">#{order.orderNumber}</span>
-                    <div className="text-xs uppercase font-bold text-gray-400 mt-1">{order.orderMode}</div>
-                </div>
-                <div className={`text-lg font-mono font-bold ${isLate ? 'text-red-400' : 'text-gray-300'}`}>
-                    {mins}m
+        // Usamos las clases CSS de App.css: order-card, status-..., alert
+        <div className={`order-card status-${uiStatus} ${isLate && !isReady ? 'alert' : ''}`}>
+            <div className="order-card-header">
+                <h2 className="order-number">#{order.orderNumber.toString().padStart(3, '0')}</h2>
+                <div className="order-meta">
+                    <span className="order-type">{order.orderMode}</span>
+                    <span className={`order-time ${isLate ? 'alert-time' : ''}`}>
+                        {mins}m
+                    </span>
                 </div>
             </div>
 
-            <div className="p-3 flex-1 overflow-y-auto space-y-3">
+            <div className="kds-item-list">
                 {order.items.map((item, idx) => (
-                    <div key={idx} className="border-b border-gray-700/50 last:border-0 pb-2 last:pb-0">
-                        <div className="font-bold text-lg leading-tight text-white">
-                            1 {item.baseName}
-                            {item.details.variantName && <span className="text-sm font-normal text-blue-300 ml-1">({item.details.variantName})</span>}
-                        </div>
+                    <div key={idx} className="kds-item">
+                        <h3 className="kds-item-name">
+                            1 {item.baseName} {item.details.variantName && `(${item.details.variantName})`}
+                        </h3>
                         
                         {(() => {
-                            // Combinamos lógica vieja y nueva de modificadores
                             const mods = item.details.selectedModifiers || item.details.modifiers || [];
                             if (mods.length === 0) return null;
                             return (
-                                <ul className="mt-1 ml-2 space-y-0.5">
+                                <ul className="kds-item-details">
                                     {mods.map((m, i) => (
-                                        <li key={i} className="text-sm text-green-400 flex items-center gap-1 font-medium">
-                                            <span>+ {m.name}</span>
+                                        <li key={i} className="extra">
+                                            + {m.name}
                                         </li>
                                     ))}
                                 </ul>
@@ -205,20 +190,20 @@ const OrderCard: React.FC<{ order: KDSOrder }> = ({ order }) => {
                 ))}
             </div>
 
-            <div className="p-2 bg-gray-800/50 mt-auto flex gap-2">
-                {uiStatus === 'PENDING' && (
-                    <button onClick={() => updateStatus('PREPARING')} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-md font-bold text-lg">
+            <div className="card-actions">
+                {isPending && (
+                    <button onClick={() => updateStatus('PREPARING')} className="btn-action btn-preparar">
                         COCINAR 🔥
                     </button>
                 )}
-                {uiStatus === 'PREPARING' && (
-                    <button onClick={() => updateStatus('READY')} className="flex-1 bg-green-600 hover:bg-green-500 text-white py-3 rounded-md font-bold text-lg">
+                {isPreparing && (
+                    <button onClick={() => updateStatus('READY')} className="btn-action btn-listo">
                         TERMINAR ✅
                     </button>
                 )}
-                {uiStatus === 'READY' && (
-                    <button onClick={() => updateStatus('DELIVERED')} className="flex-1 bg-gray-600 hover:bg-gray-500 text-white py-3 rounded-md font-bold text-sm uppercase">
-                        Entregar 📦
+                {isReady && (
+                    <button onClick={() => updateStatus('DELIVERED')} className="btn-action" style={{background: '#4b5563', color: 'white'}}>
+                        ENTREGADO
                     </button>
                 )}
             </div>
