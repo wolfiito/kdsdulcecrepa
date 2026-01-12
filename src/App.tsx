@@ -1,238 +1,116 @@
-// kdsdulcecrepafront/src/App.tsx
-import React, { useEffect, useState, useRef } from 'react';
-import { 
-    db, collection, doc, updateDoc, onSnapshot, query, where, orderBy,
-    type Timestamp, type QuerySnapshot, type DocumentData 
-} from './firebase'; 
-import './App.css'; 
+import React, { useState, useEffect } from 'react';
+import { useOrders } from './hooks/useOrders';
+import { OrderCard } from './components/OrderCard';
+import { HistoryModal } from './components/HistoryModal'; // Importar Modal
 
-// --- TIPOS ACTUALIZADOS ---
-interface KDSOrder {
-  orderId: string;
-  orderNumber: number;
-  customerName?: string;
-  status: string;         // Dinero (pending/paid)
-  kitchenStatus?: string; // Cocina (queued/preparing/ready/delivered)
-  orderMode: string;
-  createdAt: Timestamp; 
-  items: KDSOrderItem[];
-}
-
-interface KDSOrderItem {
-    ticketItemId: string;
-    baseName: string;
-    details: {
-        variantName?: string;
-        selectedModifiers?: { name: string; price: number; group: string }[];
-        modifiers?: { name: string; price: number; group: string }[];
-    };
-}
-
-// ... (Hooks de Reloj y Tiempo IGUALES) ...
-function useKdsClock() {
+const Clock = () => {
     const [time, setTime] = useState(new Date());
     useEffect(() => {
         const timer = setInterval(() => setTime(new Date()), 1000);
         return () => clearInterval(timer);
     }, []);
-    return time.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
-}
-
-function useElapsedTime(createdAt: any) {
-    const [mins, setMins] = useState(0);
-    useEffect(() => {
-        const calc = () => {
-            if (!createdAt) return;
-            const start = createdAt.toMillis ? createdAt.toMillis() : new Date(createdAt).getTime();
-            const diff = Math.floor((Date.now() - start) / 60000);
-            setMins(diff);
-        };
-        calc();
-        const timer = setInterval(calc, 30000);
-        return () => clearInterval(timer);
-    }, [createdAt]);
-    return mins;
-}
+    return <span className="font-mono text-xl md:text-2xl font-bold tracking-widest text-brand-dark">{time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>;
+};
 
 function App() {
-  const [orders, setOrders] = useState<KDSOrder[]>([]);
-  const [isConnected, setIsConnected] = useState(false);
-  const [isInteracted, setIsInteracted] = useState(false); 
-  const clockTime = useKdsClock();
-  const audioRef = useRef<HTMLAudioElement>(null);
-
-  useEffect(() => {
-    if (!isInteracted) return;
-    audioRef.current?.play().catch(() => {}); 
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    // --- NUEVA CONSULTA INTELIGENTE ---
-    // Traemos todo lo que NO esté entregado ('delivered')
-    // Nota: Como 'kitchenStatus' es nuevo, algunas órdenes viejas no lo tendrán.
-    // Firestore no permite filtrar por campos inexistentes fácilmente, así que traemos las del día
-    // y filtramos en memoria por seguridad.
-    const q = query(
-      collection(db, "orders"),
-      where("createdAt", ">=", today), 
-      orderBy("createdAt", "asc")
-    );
-  
-    const unsubscribe = onSnapshot(q, (snapshot: QuerySnapshot<DocumentData>) => {
-        setIsConnected(true);
-        
-        const ordersData = snapshot.docs
-            .map((doc) => {
-                const data = doc.data();
-                return { orderId: doc.id, ...data } as KDSOrder;
-            })
-            // FILTRO DE MEMORIA:
-            // 1. Si tiene kitchenStatus, que NO sea 'delivered'.
-            // 2. Si NO tiene kitchenStatus (orden vieja), usamos la lógica anterior (status != 'DELIVERED').
-            .filter(o => {
-                if (o.kitchenStatus) return o.kitchenStatus !== 'delivered';
-                return o.status !== 'DELIVERED'; // Retro-compatibilidad
-            });
-
-        // DETECCIÓN DE NUEVAS ÓRDENES (Sonido)
-        snapshot.docChanges().forEach((change) => {
-            if (change.type === "added") {
-                const data = change.doc.data();
-                // Si es reciente y no está entregada, suena
-                const isFresh = (Date.now() - (data.createdAt?.toMillis?.() || 0)) < 10 * 60 * 1000;
-                const notDelivered = data.kitchenStatus !== 'delivered';
-                
-                if (isFresh && notDelivered) {
-                    audioRef.current?.play().catch(() => {});
-                }
-            }
-        });
-
-        setOrders(ordersData);
-      },
-      (error) => {
-        console.error("KDS Error:", error);
-        setIsConnected(false);
-      }
-    );
-    return () => unsubscribe();
-  }, [isInteracted]);
+  const { orders, history, isConnected, updateStatus, audioRef } = useOrders(); // Ahora traemos 'history'
+  const [isInteracted, setIsInteracted] = useState(false);
+  const [showHistory, setShowHistory] = useState(false); // Estado para abrir/cerrar modal
 
   if (!isInteracted) {
     return (
-        <div className="kds-welcome-screen" onClick={() => setIsInteracted(true)}>
-            <img src="/logo.png" alt="Logo" style={{height: '150px', marginBottom: '20px', borderRadius: '20px'}} />
-            <h1>KDS Dulce Crepa</h1>
-            <p>Tocar para Iniciar</p>
+      <div 
+        onClick={() => setIsInteracted(true)}
+        className="h-screen w-full bg-brand-light flex flex-col items-center justify-center cursor-pointer select-none space-y-8 animate-fade-in-up"
+      >
+        <div className="relative group">
+            <div className="absolute inset-0 bg-brand-pink blur-3xl opacity-20 rounded-full group-hover:opacity-40 transition-opacity"></div>
+            <img src="/logo.png" alt="Logo" className="relative w-48 h-48 rounded-full shadow-2xl border-4 border-white transform transition-transform group-hover:scale-105" />
         </div>
+        <div className="text-center space-y-2">
+            <h1 className="text-5xl font-black text-gray-800 tracking-tight">Dulce Crepa KDS</h1>
+            <p className="text-xl text-brand-pink font-bold animate-pulse">Tocar pantalla para iniciar turno</p>
+        </div>
+      </div>
     );
   }
 
   return (
-    <div className="App">
-      <header className="kds-header">
-            <img src="/logo.png" alt="Logo" className="kds-logo" />
-            <span className="kds-station-name">Cocina Principal</span>
-            <span className="kds-clock">{clockTime}</span>
-            <div className="connection-indicator">
-                <div className={`connection-dot ${isConnected ? 'connected' : ''}`}></div>
-                {isConnected ? 'Conectado' : 'Sin Conexión'}
-            </div>
-      </header>
-      
-      <div className="order-grid">
-        {orders.length === 0 && (
-            <h2 style={{color: 'var(--text-muted)', textAlign: 'center', width: '100%', marginTop: '50px'}}>
-                Todo en orden, chef 👨‍🍳
-            </h2>
-        )}
-        {orders.map(order => <OrderCard key={order.orderId} order={order} />)}
-      </div>
-
-      <audio ref={audioRef} src="/notification.mp3" preload="auto" />
-    </div>
-  );
-}
-
-const OrderCard: React.FC<{ order: KDSOrder }> = ({ order }) => {
-    const mins = useElapsedTime(order.createdAt);
-    const isLate = mins > 10;
-
-    // AHORA ACTUALIZAMOS 'kitchenStatus', NO 'status'
-    const updateKitchenStatus = (ks: string) => {
-        updateDoc(doc(db, "orders", order.orderId), { kitchenStatus: ks }).catch(console.error);
-    };
-
-    // Lógica visual basada en el nuevo campo, con fallback para órdenes viejas
-    const currentKS = order.kitchenStatus || 'queued';
-    
-    const isPending = currentKS === 'queued';
-    const isPreparing = currentKS === 'preparing';
-    const isReady = currentKS === 'ready';
-
-    // Mapeamos 'queued' a la clase 'status-PENDING' para mantener tus colores CSS
-    const cssStatus = isPending ? 'PENDING' : isPreparing ? 'PREPARING' : isReady ? 'READY' : 'DELIVERED';
-
-    return (
-        <div className={`order-card status-${cssStatus} ${isLate && !isReady ? 'alert' : ''}`}>
-            <div className="order-card-header">
-                <div className="flex justify-between items-start w-full">
-                    <div>
-                        <h2 className="order-number">#{order.orderNumber.toString().padStart(3, '0')}</h2>
-                        {order.customerName && (
-                            <div style={{fontSize: '1.1rem', fontWeight: 'bold', color: '#374151', marginTop: '4px'}}>
-                                {order.customerName}
-                            </div>
-                        )}
-                    </div>
-                    <div className="order-meta" style={{display:'flex', flexDirection:'column', alignItems:'flex-end'}}>
-                        <span className="order-type">{order.orderMode}</span>
-                        <span className={`order-time ${isLate ? 'alert-time' : ''}`}>
-                            {mins}m
-                        </span>
-                    </div>
+    <div className="flex flex-col h-screen bg-gray-50 text-gray-800 font-sans overflow-hidden">
+        
+        {/* --- HEADER --- */}
+        <header className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200 shadow-sm z-10">
+            <div className="flex items-center gap-4">
+                <div className="p-1 bg-brand-light rounded-xl">
+                    <img src="/logo.png" alt="Logo" className="w-12 h-12 rounded-lg" />
+                </div>
+                <div>
+                    <h1 className="text-xl font-black leading-none text-gray-800 tracking-tight">Cocina Principal</h1>
+                    <span className="text-xs text-brand-pink font-bold tracking-wide">DULCE CREPA POS</span>
                 </div>
             </div>
 
-            <div className="kds-item-list">
-                {order.items.map((item, idx) => (
-                    <div key={idx} className="kds-item">
-                        <h3 className="kds-item-name">
-                            1 {item.baseName} {item.details.variantName && `(${item.details.variantName})`}
-                        </h3>
-                        {(() => {
-                            const mods = item.details.selectedModifiers || item.details.modifiers || [];
-                            if (mods.length === 0) return null;
-                            return (
-                                <ul className="kds-item-details">
-                                    {mods.map((m, i) => <li key={i} className="extra">+ {m.name}</li>)}
-                                </ul>
-                            );
-                        })()}
-                    </div>
-                ))}
+            {/* Reloj */}
+            <div className="bg-brand-light px-6 py-2 rounded-xl border border-pink-100">
+                <Clock />
             </div>
 
-            <div className="card-actions">
-                {isPending && (
-                    <button onClick={() => updateKitchenStatus('preparing')} className="btn-action btn-preparar">
-                        COCINAR 🔥
-                    </button>
-                )}
-                {isPreparing && (
-                    <button onClick={() => updateKitchenStatus('ready')} className="btn-action btn-listo">
-                        TERMINAR ✅
-                    </button>
-                )}
-                {isReady && (
-                    <button onClick={() => updateKitchenStatus('delivered')} className="btn-action" style={{background: '#4b5563', color: 'white'}}>
-                        ENTREGADO
-                    </button>
-                )}
+            {/* Botonera Derecha */}
+            <div className="flex items-center gap-3">
+                {/* Botón de Historial */}
+                <button 
+                    onClick={() => setShowHistory(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold rounded-lg transition"
+                    title="Ver Historial del Turno"
+                >
+                    <span>📜</span>
+                    <span className="hidden md:inline">Historial</span>
+                </button>
+
+                {/* Status Indicator */}
+                <div className={`flex items-center gap-2 px-4 py-2 rounded-full border shadow-sm transition-colors ${isConnected ? 'bg-green-50 border-green-200 text-green-600' : 'bg-red-50 border-red-200 text-red-600'}`}>
+                    <div className={`w-2.5 h-2.5 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'} animate-pulse`}></div>
+                    <span className="text-xs font-extrabold tracking-wide hidden sm:inline">{isConnected ? 'ONLINE' : 'OFFLINE'}</span>
+                </div>
             </div>
-        </div>
-    );
+        </header>
+
+        {/* --- GRID --- */}
+        <main className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-slate-50/50">
+            {orders.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-4 animate-fade-in-up">
+                    <div className="p-6 bg-white rounded-full shadow-sm border border-gray-100">
+                        <svg className="w-16 h-16 text-brand-pink/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <p className="text-2xl font-bold text-gray-500">¡Todo listo, Chef! 👨‍🍳</p>
+                    <p className="text-sm text-gray-400">Esperando nuevas órdenes dulces...</p>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-5 pb-20">
+                    {orders.map(order => (
+                        <OrderCard 
+                            key={order.orderId} 
+                            order={order} 
+                            onStatusChange={updateStatus} 
+                        />
+                    ))}
+                </div>
+            )}
+        </main>
+
+        {/* MODAL DE HISTORIAL */}
+        <HistoryModal 
+            isOpen={showHistory} 
+            onClose={() => setShowHistory(false)} 
+            historyOrders={history}
+            onRestore={updateStatus}
+        />
+
+        <audio ref={audioRef} src="/notification.mp3" preload="auto" />
+    </div>
+  );
 }
 
 export default App;
