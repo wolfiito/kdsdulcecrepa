@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useOrders } from './hooks/useOrders';
 import { OrderCard } from './components/OrderCard';
 import { HistoryModal } from './components/HistoryModal'; // Importar Modal
