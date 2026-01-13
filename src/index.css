@@ -21,3 +21,35 @@ body {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #f472b6; /* Rosa más fuerte al hover */
 }
+#rotate-warning {
+  display: none;
+}
+
+@media (orientation: portrait) {
+  body {
+    overflow: hidden; /* Evita scroll */
+  }
+  
+  /* Ocultamos la App real */
+  #root {
+    display: none;
+  }
+
+  /* Mostramos la advertencia */
+  #rotate-warning {
+    display: flex;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: #ec4899; /* Tu color pink */
+    z-index: 9999;
+    flex-col: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: white;
+    padding: 2rem;
+  }
+}
