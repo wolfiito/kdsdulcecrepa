@@ -1,38 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useOrders } from './hooks/useOrders';
 import { OrderCard } from './components/OrderCard';
-import { HistoryModal } from './components/HistoryModal'; // Importar Modal
-
-const Clock = () => {
-    const [time, setTime] = useState(new Date());
-    useEffect(() => {
-        const timer = setInterval(() => setTime(new Date()), 1000);
-        return () => clearInterval(timer);
-    }, []);
-    return <span className="font-mono text-xl md:text-2xl font-bold tracking-widest text-brand-dark">{time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>;
-};
+import { HistoryModal } from './components/HistoryModal';
+import { Clock } from './components/Clock';
+import { WelcomeScreen } from './components/WelcomeScreen';
 
 function App() {
-  const { orders, history, isConnected, updateStatus, audioRef } = useOrders(); // Ahora traemos 'history'
+  const { orders, history, isConnected, updateStatus, audioRef } = useOrders();
   const [isInteracted, setIsInteracted] = useState(false);
-  const [showHistory, setShowHistory] = useState(false); // Estado para abrir/cerrar modal
+  const [showHistory, setShowHistory] = useState(false);
 
+  // Renderizado condicional limpio
   if (!isInteracted) {
-    return (
-      <div 
-        onClick={() => setIsInteracted(true)}
-        className="h-screen w-full bg-brand-light flex flex-col items-center justify-center cursor-pointer select-none space-y-8 animate-fade-in-up"
-      >
-        <div className="relative group">
-            <div className="absolute inset-0 bg-brand-pink blur-3xl opacity-20 rounded-full group-hover:opacity-40 transition-opacity"></div>
-            <img src="/logo.png" alt="Logo" className="relative w-48 h-48 rounded-full shadow-2xl border-4 border-white transform transition-transform group-hover:scale-105" />
-        </div>
-        <div className="text-center space-y-2">
-            <h1 className="text-5xl font-black text-gray-800 tracking-tight">Dulce Crepa KDS</h1>
-            <p className="text-xl text-brand-pink font-bold animate-pulse">Tocar pantalla para iniciar turno</p>
-        </div>
-      </div>
-    );
+    return <WelcomeScreen onStart={() => setIsInteracted(true)} />;
   }
 
   return (
@@ -50,14 +30,11 @@ function App() {
                 </div>
             </div>
 
-            {/* Reloj */}
             <div className="bg-brand-light px-6 py-2 rounded-xl border border-pink-100">
                 <Clock />
             </div>
 
-            {/* Botonera Derecha */}
             <div className="flex items-center gap-3">
-                {/* Botón de Historial */}
                 <button 
                     onClick={() => setShowHistory(true)}
                     className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold rounded-lg transition"
@@ -67,7 +44,6 @@ function App() {
                     <span className="hidden md:inline">Historial</span>
                 </button>
 
-                {/* Status Indicator */}
                 <div className={`flex items-center gap-2 px-4 py-2 rounded-full border shadow-sm transition-colors ${isConnected ? 'bg-green-50 border-green-200 text-green-600' : 'bg-red-50 border-red-200 text-red-600'}`}>
                     <div className={`w-2.5 h-2.5 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'} animate-pulse`}></div>
                     <span className="text-xs font-extrabold tracking-wide hidden sm:inline">{isConnected ? 'ONLINE' : 'OFFLINE'}</span>
@@ -100,7 +76,6 @@ function App() {
             )}
         </main>
 
-        {/* MODAL DE HISTORIAL */}
         <HistoryModal 
             isOpen={showHistory} 
             onClose={() => setShowHistory(false)} 
