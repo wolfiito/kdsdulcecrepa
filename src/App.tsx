@@ -51,7 +51,7 @@ function App() {
             </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-2 custom-scrollbar bg-slate-50/50"> 
+        <main className="flex-1 overflow-y-auto p-2 custom-scrollbar bg-slate-50/50">
             {orders.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-4 animate-fade-in-up">
                     <div className="p-6 bg-white rounded-full shadow-sm border border-gray-100">
@@ -63,7 +63,7 @@ function App() {
                     <p className="text-sm text-gray-400">Esperando nuevas órdenes dulces...</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-5 pb-20">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pb-20">
                     {orders.map(order => (
                         <OrderCard 
                             key={order.orderId} 
