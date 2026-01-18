@@ -51,8 +51,7 @@ function App() {
             </div>
         </header>
 
-        {/* --- GRID --- */}
-        <main className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-slate-50/50">
+        <main className="flex-1 overflow-y-auto p-2 custom-scrollbar bg-slate-50/50"> 
             {orders.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-4 animate-fade-in-up">
                     <div className="p-6 bg-white rounded-full shadow-sm border border-gray-100">
