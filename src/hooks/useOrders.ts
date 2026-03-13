@@ -5,7 +5,7 @@ import {
 } from '../firebase';
 import type { KDSOrder } from '../types/types';
 
-export function useOrders() {
+export function useOrders(branchId: string | null) {
     const [orders, setOrders] = useState<KDSOrder[]>([]); // Órdenes Activas
     const [history, setHistory] = useState<KDSOrder[]>([]); // Órdenes Terminadas/Canceladas
     const [isConnected, setIsConnected] = useState(false);
@@ -18,12 +18,14 @@ export function useOrders() {
     };
 
     useEffect(() => {
+        if (!branchId) return;
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
         // Traemos TODAS las órdenes del día
         const q = query(
             collection(db, "orders"),
+            where("branchId", "==", branchId),
             where("createdAt", ">=", today),
             orderBy("createdAt", "asc")
         );
@@ -77,7 +79,7 @@ export function useOrders() {
         });
 
         return () => unsubscribe();
-    }, []);
+    }, [branchId]);
 
     const updateStatus = async (orderId: string, newStatus: string) => {
         try {

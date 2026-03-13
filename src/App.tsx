@@ -1,3 +1,4 @@
+// src/App.tsx
 import { useState } from 'react';
 import { useOrders } from './hooks/useOrders';
 import { OrderCard } from './components/OrderCard';
@@ -6,14 +7,32 @@ import { Clock } from './components/Clock';
 import { WelcomeScreen } from './components/WelcomeScreen';
 
 function App() {
-  const { orders, history, isConnected, updateStatus, audioRef } = useOrders();
-  const [isInteracted, setIsInteracted] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
+    // 1. Leemos la memoria
+    const savedBranchId = localStorage.getItem('kds_branch_id');
+    const savedBranchName = localStorage.getItem('kds_branch_name') || 'Cocina Principal';
 
-  // Renderizado condicional limpio
-  if (!isInteracted) {
-    return <WelcomeScreen onStart={() => setIsInteracted(true)} />;
-  }
+    const [branchId, setBranchId] = useState<string | null>(savedBranchId);
+    const [branchName, setBranchName] = useState<string>(savedBranchName);
+    const [isInteracted, setIsInteracted] = useState(false);
+    const [showHistory, setShowHistory] = useState(false);
+
+    // 2. CORRECCIÓN: Le pasamos el branchId al Hook para que filtre en Firebase
+    const { orders, history, isConnected, updateStatus, audioRef } = useOrders(branchId);
+
+    // 3. CORRECCIÓN: Si no hay sucursal guardada o no han tocado, mostramos el Welcome
+    if (!branchId || !isInteracted) {
+        return (
+            <WelcomeScreen 
+                onStart={(id, name) => {
+                    setBranchId(id);
+                    setBranchName(name);
+                    localStorage.setItem('kds_branch_id', id);
+                    localStorage.setItem('kds_branch_name', name);
+                    setIsInteracted(true);
+                }} 
+            />
+        );
+    }
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 text-gray-800 font-sans overflow-hidden">
@@ -25,8 +44,9 @@ function App() {
                     <img src="/logo.png" alt="Logo" className="w-12 h-12 rounded-lg" />
                 </div>
                 <div>
-                    <h1 className="text-xl font-black leading-none text-gray-800 tracking-tight">Cocina Principal</h1>
-                    <span className="text-xs text-brand-pink font-bold tracking-wide">DULCE CREPA POS</span>
+                    {/* CORRECCIÓN: Mostramos el nombre dinámico de la sucursal */}
+                    <h1 className="text-xl font-black leading-none text-gray-800 tracking-tight">{branchName}</h1>
+                    <span className="text-xs text-brand-pink font-bold tracking-wide">DULCE CREPA KDS</span>
                 </div>
             </div>
 

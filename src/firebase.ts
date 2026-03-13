@@ -17,16 +17,14 @@ import {
     type QueryDocumentSnapshot,
     type Timestamp 
 } from "firebase/firestore";
-
 const firebaseConfig = {
-  apiKey: "AIzaSyA_H_rGtLHa_WKzn2DvduS2m6L69C5xCYs",
-  authDomain: "dulcecrepapos.firebaseapp.com",
-  projectId: "dulcecrepapos",
-  storageBucket: "dulcecrepapos.firebasestorage.app",
-  messagingSenderId: "1036136584049",
-  appId: "1:1036136584049:web:32d7baea5fa295e7dc9cd0"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
-
 const app = initializeApp(firebaseConfig);
 
 // Habilitar caché offline y entre pestañas
