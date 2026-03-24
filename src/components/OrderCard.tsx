@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import type { KDSOrder, KDSOrderItem } from '../types/types';
+import type { KDSOrder } from '../types/types';
 import { Timestamp } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
