@@ -27,6 +27,36 @@ interface OrderCardProps {
     onStatusChange: (orderId: string, newStatus: string) => void;
 }
 
+const consolidateItems = (items: any[]) => {
+    const grouped: any[] = [];
+    
+    items.forEach(item => {
+        // 1. Extraemos los modificadores (ingredientes extra) para compararlos
+        const mods = item.details?.selectedModifiers || item.details?.modifiers || [];
+        const modsString = mods.map((m: any) => m.name).sort().join('|'); // Ej: "Fresa|Lechera"
+        
+        // 2. Creamos una "llave" única. Si dos productos tienen la misma llave, son idénticos.
+        const key = `${item.baseName}-${item.details?.variantName || ''}-${modsString}-${item.notes || ''}`;
+
+        // 3. Buscamos si ya existe esta llave en nuestro grupo
+        const existing = grouped.find(g => g._groupKey === key);
+        
+        if (existing) {
+            // Si ya existe, solo le sumamos la cantidad
+            existing.displayQuantity += (item.quantity || 1);
+        } else {
+            // Si es nuevo, lo agregamos a la lista
+            grouped.push({
+                ...item,
+                displayQuantity: item.quantity || 1,
+                _groupKey: key
+            });
+        }
+    });
+    
+    return grouped;
+};
+
 export const OrderCard: React.FC<OrderCardProps> = ({ order, onStatusChange }) => {
     const mins = useElapsedTime(order.createdAt);
     const isLate = mins > 10; 
@@ -99,19 +129,32 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order, onStatusChange }) =
                 </div>
             </div>
 
-            {/* ITEMS COMPACTOS */}
+            {/* ITEMS COMPACTOS (Ahora Agrupados) */}
             <div className="flex-1 p-2 overflow-y-auto custom-scrollbar space-y-1 bg-white/30">
-                {order.items.map((item: KDSOrderItem, idx: number) => (
+                {/* 👇 Cambiamos order.items.map por consolidateItems(order.items).map 👇 */}
+                {consolidateItems(order.items).map((item: any, idx: number) => (
                     <div key={idx} className="flex flex-col border-b border-gray-100 last:border-0 pb-1">
                         <div className="flex items-start gap-1 leading-tight">
-                            <span className="text-brand-pink font-black text-xs pt-0.5">1x</span>
+                            {/* 👇 Aquí reemplazamos el 1x quemado por la cantidad real 👇 */}
+                            <span className="text-brand-pink font-black text-xs pt-0.5">
+                                {item.displayQuantity}x
+                            </span>
                             <span className="text-sm md:text-xs font-bold text-gray-800 break-words">
                                 {item.baseName}
                             </span>
                         </div>
-                        <div className="pl-4 text-[10px] md:text-[10px] text-gray-500 leading-tight">
-                            {item.details.variantName && <div className="font-medium text-gray-600">• {item.details.variantName}</div>}
-                            {[...(item.details.selectedModifiers || []), ...(item.details.modifiers || [])].map((mod, i) => (
+                        <div className="pl-4 text-[10px] md:text-[10px] text-gray-500 leading-tight mt-0.5">
+                            {/* 👇 Agregamos las notas para la cocina (Ej. "Extra dorada") 👇 */}
+                            {item.notes && (
+                                <div className="font-bold text-red-500 bg-red-50 px-1 py-0.5 rounded border border-red-100 mb-0.5">
+                                    📝 {item.notes}
+                                </div>
+                            )}
+
+                            {item.details?.variantName && <div className="font-medium text-gray-600">• {item.details.variantName}</div>}
+                            
+                            {/* Modificadores */}
+                            {[...(item.details?.selectedModifiers || []), ...(item.details?.modifiers || [])].map((mod, i) => (
                                 <div key={i} className="text-brand-dark font-semibold">+ {mod.name}</div>
                             ))}
                         </div>
