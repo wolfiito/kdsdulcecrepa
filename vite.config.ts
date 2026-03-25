@@ -7,37 +7,35 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      // Estrategia de actualización automática (para que los cocineros siempre tengan la última versión)
       registerType: 'autoUpdate', 
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+      includeAssets: ['logo.png', 'pwa-192x192.png', 'pwa-512x512.png', 'maskable-icon.png', 'notification.mp3'],
       
-      // CONFIGURACIÓN DEL MANIFIESTO (Cómo se ve la App instalada)
       manifest: {
         name: 'KDS Dulce Crepa',
         short_name: 'DulceCrepaKDS',
         description: 'Sistema de Pantalla de Cocina para Dulce Crepa',
         theme_color: '#ffffff',
         background_color: '#ffffff',
-        display: 'standalone', // Esto elimina la barra de URL del navegador (Look nativo)
-        orientation: 'landscape', // Fuerza la vista horizontal (ideal para tablets)
+        display: 'standalone',
+        orientation: 'landscape',
         scope: '/',
         start_url: '/',
         icons: [
           {
-            src: '/pwa-192x192.png',
+            src: 'pwa-192x192.png',
             sizes: '192x192',
             type: 'image/png'
           },
           {
-            src: '/pwa-512x512.png',
+            src: 'pwa-512x512.png',
             sizes: '512x512',
             type: 'image/png'
           },
           {
-            src: '/pwa-512x512.png',
+            src: 'maskable-icon.png',
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'any maskable' // Importante para Android
+            purpose: 'maskable'
           }
         ]
       }
