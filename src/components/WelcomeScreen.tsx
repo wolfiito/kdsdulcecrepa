@@ -14,14 +14,25 @@ export const WelcomeScreen = ({ onStart }: WelcomeScreenProps) => {
     useEffect(() => {
         const fetchBranches = async () => {
             try {
-                // Buscamos las sucursales activas
-                const q = query(collection(db, 'branches'), where('isActive', '==', true));
-                const snap = await getDocs(q);
-                const loaded = snap.docs.map(d => ({ id: d.id, name: d.data().name }));
+                // 1. Intentamos buscar las sucursales activas
+                let q = query(collection(db, 'branches'), where('isActive', '==', true));
+                let snap = await getDocs(q);
+                
+                // 2. Si no hay activas, intentamos traer todas (FALLBACK)
+                if (snap.empty) {
+                    q = query(collection(db, 'branches'));
+                    snap = await getDocs(q);
+                }
+
+                const loaded = snap.docs.map(d => {
+                    const data = d.data();
+                    return { id: d.id, name: data.name || data.nombre || 'Sin nombre' };
+                });
+                
                 setBranches(loaded);
                 if (loaded.length > 0) setSelectedBranch(loaded[0].id);
-            } catch (error) {
-                console.error("Error cargando sucursales:", error);
+            } catch (error: any) {
+
             } finally {
                 setLoading(false);
             }
