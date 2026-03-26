@@ -32,12 +32,11 @@ export const WelcomeScreen = ({ onStart }: WelcomeScreenProps) => {
                 setBranches(loaded);
                 if (loaded.length > 0) setSelectedBranch(loaded[0].id);
             } catch (error: any) {
-
             } finally {
                 setLoading(false);
             }
         };
-        fetchBranches();
+        fetchBranches();//
     }, []);
 
     const handleStart = () => {
